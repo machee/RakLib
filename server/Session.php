@@ -42,6 +42,8 @@ class Session{
 	const MAX_SPLIT_SIZE = 128;
 	const MAX_SPLIT_COUNT = 4;
 
+	private const MAX_RESENDS_PER_DATAGRAM = 5;
+
 	public static $WINDOW_SIZE = 2048;
 
 	/** @var int */
@@ -217,8 +219,10 @@ class Session{
 
 		foreach($this->recoveryQueue as $seq => $pk){
 			if($pk->sendTime < (time() - 8)){
-				$this->packetToSend[] = $pk;
 				unset($this->recoveryQueue[$seq]);
+				if(!$this->addToResendQueue($pk)){
+					break;
+				}
 			}else{
 				break;
 			}
@@ -249,9 +253,20 @@ class Session{
 			unset($this->recoveryQueue[$datagram->seqNumber]);
 		}
 		$datagram->seqNumber = $this->sendSeqNumber++;
+		++$datagram->timesSent;
 		$datagram->sendTime = microtime(true);
 		$this->recoveryQueue[$datagram->seqNumber] = $datagram;
 		$this->sendPacket($datagram);
+	}
+
+	private function addToResendQueue(Datagram $datagram) : bool{
+		if($datagram->timesSent >= self::MAX_RESENDS_PER_DATAGRAM){
+			$this->disconnect("connection too unreliable (max resends per datagram threshold exceeded)");
+			return false;
+		}
+
+		$this->packetToSend[] = $datagram;
+		return true;
 	}
 
 	private function queueConnectedPacket(Packet $packet, int $reliability, int $orderChannel, int $flags = RakLib::PRIORITY_NORMAL) : void{
@@ -548,8 +563,11 @@ class Session{
 				$packet->decode();
 				foreach($packet->packets as $seq){
 					if(isset($this->recoveryQueue[$seq])){
-						$this->packetToSend[] = $this->recoveryQueue[$seq];
+						$pk = $this->recoveryQueue[$seq];
 						unset($this->recoveryQueue[$seq]);
+						if(!$this->addToResendQueue($pk)){
+							break;
+						}
 					}
 				}
 			}

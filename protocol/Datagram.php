@@ -36,6 +36,9 @@ class Datagram extends Packet{
 	/** @var int */
 	public $seqNumber;
 
+	/** @var int */
+	public $timesSent = 0;
+
 	protected function encodeHeader() : void{
 		$this->putByte(self::BITFLAG_VALID | $this->headerFlags);
 	}

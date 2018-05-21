@@ -34,6 +34,17 @@ class OpenConnectionReply1 extends OfflineMessage{
 		$this->putLong($this->serverID);
 		$this->putByte($this->serverSecurity ? 1 : 0);
 		$this->putShort($this->mtuSize);
+
+		/*
+		 * When connecting via some VPNs which use compression, the initial connection request can get compressed, which
+		 * messes up path MTU and can cause a larger than expected MTU to be established, which then causes the
+		 * connection to break as soon as either party sends a large packet which doesn't compress.
+		 *
+		 * This is a hack to work around that - by appending random bytes to the end of the buffer, we can properly
+		 * verify the path MTU without compression interfering. If this packet is too large to reach the client, then
+		 * it will be dropped and the client will send a connection request with smaller MTU size.
+		 */
+		$this->put(random_bytes($this->mtuSize - strlen($this->buffer) - 28));
 	}
 
 	protected function decodePayload() : void{

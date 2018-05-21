@@ -92,7 +92,7 @@ class UDPServerSocket{
 	 * @return int|bool
 	 */
 	public function writePacket(string $buffer, string $dest, int $port){
-		return socket_sendto($this->socket, $buffer, strlen($buffer), 0, $dest, $port);
+		return @socket_sendto($this->socket, $buffer, strlen($buffer), 0, $dest, $port);
 	}
 
 	/**

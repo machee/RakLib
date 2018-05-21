@@ -35,6 +35,13 @@ class UDPServerSocket{
 			socket_set_option($this->socket, IPPROTO_IPV6, IPV6_V6ONLY, 1); //Don't map IPv4 to IPv6, the implementation can create another RakLib instance to handle IPv4
 		}
 
+		// PHP doesn't offer definitions for dontfragment so we have to hardcode :(
+		if(strtolower(substr(PHP_OS, 0, 3)) === "win"){
+			socket_set_option($this->socket, $bindAddress->version === 4 ? IPPROTO_IP : IPPROTO_IPV6, 14, 1); //dontfragment
+		}else{
+			socket_set_option($this->socket, $bindAddress->version === 4 ? IPPROTO_IP : IPPROTO_IPV6, 67, 1); //dontfragment
+		}
+
 		if(@socket_bind($this->socket, $bindAddress->ip, $bindAddress->port) === true){
 			socket_set_option($this->socket, SOL_SOCKET, SO_REUSEADDR, 0);
 			$this->setSendBuffer(1024 * 1024 * 8)->setRecvBuffer(1024 * 1024 * 8);

@@ -132,17 +132,23 @@ class SessionManager{
 	}
 
 	private function tickProcessor() : void{
-		$this->lastMeasure = microtime(true);
+		$nextTick = $this->lastMeasure = microtime(true);
 
 		while(!$this->shutdown){
-			$start = microtime(true);
+			$nextTick += self::RAKLIB_TIME_PER_TICK;
 			while($this->receivePacket()){}
 			while($this->receiveStream()){}
 			$this->tick();
 
-			$time = microtime(true) - $start;
-			if($time < self::RAKLIB_TIME_PER_TICK){
-				@time_sleep_until(microtime(true) + self::RAKLIB_TIME_PER_TICK - $time);
+			if(($now = microtime(true)) < $nextTick){
+				while(!$this->shutdown and ($now = microtime(true)) < $nextTick){
+					$r = [$this->socket->getSocket()];
+					if(socket_select($r, $w, $e, 0, (int) (($nextTick - $now) * 1000000)) === 1){
+						while($this->receivePacket()){}
+					}
+				}
+			}else{
+				$nextTick = $now;
 			}
 		}
 	}

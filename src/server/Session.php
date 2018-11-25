@@ -172,12 +172,6 @@ class Session{
 	}
 
 	public function update(float $time) : void{
-		if(!$this->isActive and ($this->lastUpdate + 10) < $time){
-			$this->disconnect("timeout");
-
-			return;
-		}
-
 		if($this->state === self::STATE_DISCONNECTING and (
 			(empty($this->ACKQueue) and empty($this->NACKQueue) and empty($this->packetToSend) and empty($this->recoveryQueue)) or
 			$this->disconnectionTime + 10 < $time)
